@@ -107,14 +107,13 @@ const [timeRange, setTimeRange] = useState<'week' | 'month' | '6months' | 'year'
       case 'month':
       case '6months':
         return index % 3 === 0
-          ? date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+          ? date.toLocaleDateString('en-IN', { month: 'short' })
           : '';
       case 'year':
         return index % 4 === 0
           ? date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
           : '';
       case 'all': {
-        // Only show unique years once
         const year = date.getFullYear().toString();
         if (index === 0 || date.getFullYear() !== new Date(filteredData[index - 1].dateISO).getFullYear()) {
           return year;
@@ -318,7 +317,7 @@ const filteredData = getFilteredData();
 
       {['weight', 'targetWeight', 'height', 'age'].map((field) => {
         if ((field === 'age' || field === 'height' || field === 'targetWeight') && latest?.[field]) {
-          return null; // hide if already entered
+          return null; 
         }
         return (
           <TextInput
