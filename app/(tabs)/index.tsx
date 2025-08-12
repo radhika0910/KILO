@@ -19,6 +19,7 @@ import {
   useColorScheme,
   View
 } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 
 interface Entry {
   weight: number;
@@ -26,6 +27,7 @@ interface Entry {
   height: number;
   age: number;
   date: string;
+  dateISO: string;
   bmi: number;
 }
 
@@ -40,6 +42,9 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme() || 'light';
   const theme = Colors[colorScheme];
 const [timeRange, setTimeRange] = useState<'week' | 'month' | '6months' | 'year' | 'all'>('all');
+  
+  // State for tooltip
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; value: number; label: string } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -72,6 +77,7 @@ const [timeRange, setTimeRange] = useState<'week' | 'month' | '6months' | 'year'
     height,
     age,
     date: new Date().toLocaleString(),
+    dateISO: new Date().toISOString(),
     bmi,
   };
 
@@ -89,6 +95,35 @@ const [timeRange, setTimeRange] = useState<'week' | 'month' | '6months' | 'year'
     const updatedData = data.filter((_, i) => i !== indexToDelete);
     setData(updatedData);
     await AsyncStorage.setItem('weightData', JSON.stringify(updatedData));
+  };
+
+  const formatLabel = (entry: Entry, index: number) => {
+    const date = new Date(entry.dateISO || entry.date);
+    if (isNaN(date.getTime())) return '';
+
+    switch (timeRange) {
+      case 'week':
+        return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      case 'month':
+      case '6months':
+        return index % 3 === 0
+          ? date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+          : '';
+      case 'year':
+        return index % 4 === 0
+          ? date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+          : '';
+      case 'all': {
+        // Only show unique years once
+        const year = date.getFullYear().toString();
+        if (index === 0 || date.getFullYear() !== new Date(filteredData[index - 1].dateISO).getFullYear()) {
+          return year;
+        }
+        return '';
+      }
+      default:
+        return '';
+    }
   };
 
   const getFilteredData = () => {
@@ -113,7 +148,7 @@ const [timeRange, setTimeRange] = useState<'week' | 'month' | '6months' | 'year'
       return data;
   }
 
-  return data.filter((entry) => new Date(entry.date) >= fromDate);
+  return data.filter((entry) => new Date(entry.dateISO) >= fromDate);
 };
 
 const filteredData = getFilteredData();
@@ -141,12 +176,12 @@ const filteredData = getFilteredData();
 
 
  {filteredData.length > 1 && (
+  
   <View style={{ marginBottom: 20 }}>
     <Text style={{ color: theme.text, fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
       📈 Weight Progress
     </Text>
 
-    {/* Buttons Here */}
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
   {['week', 'month', '6months', 'year', 'all'].map((range) => (
     <TouchableOpacity
@@ -166,15 +201,12 @@ const filteredData = getFilteredData();
     </TouchableOpacity>
   ))}
 </View>
+<Pressable onPress={() => setTooltip(null)}>
 
-    {/* Line Chart */}
+    
     <LineChart
       data={{
-        labels: filteredData.map((entry, index) =>
-          index % 2 === 0
-            ? new Date(entry.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-            : ''
-        ),
+        labels: filteredData.map((entry, index) => formatLabel(entry, index)),
         datasets: [
           {
             data: filteredData.map((entry) => entry.weight),
@@ -183,7 +215,7 @@ const filteredData = getFilteredData();
         ],
       }}
       width={Dimensions.get('window').width - 32}
-      height={200}
+      height={220}
       yAxisSuffix="kg"
       chartConfig={{
         backgroundGradientFrom: theme.background,
@@ -202,7 +234,43 @@ const filteredData = getFilteredData();
       }}
       bezier
       style={{ borderRadius: 12 }}
+      onDataPointClick={(data) => {
+        const labelDate = new Date(filteredData[data.index].dateISO).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+        setTooltip({
+          x: data.x,
+          y: data.y,
+          value: data.value,
+          label: labelDate,
+        });
+      }}
     />
+
+    
+    {tooltip && (
+  <View
+    style={{
+      position: 'absolute',
+      top: tooltip.y + 20,
+      left: Math.min(
+        tooltip.x + 16,
+        Dimensions.get('window').width - 120
+      ),
+      backgroundColor: theme.card,
+      padding: 6,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: theme.border,
+    }}
+  >
+    <Text style={{ color: theme.text, fontWeight: 'bold' }}>{tooltip.label}</Text>
+    <Text style={{ color: theme.highlight }}>{tooltip.value} kg</Text>
+  </View>
+)}
+    </Pressable>
   </View>
 )}
 

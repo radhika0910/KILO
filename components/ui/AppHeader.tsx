@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: Platform.OS === 'ios' ? '600' : 'bold',
     flex: 1,
-    textAlign: 'left',
+    textAlign: 'left',  
   },
   rightComponent: {
     width: 40,
