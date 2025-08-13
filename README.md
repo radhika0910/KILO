@@ -24,7 +24,6 @@ A sleek and efficient **weight tracker** and **BMI calculator** built with React
 | ------------------------------- | --------------------------------- | --------------------------------------- |
 | ![Home](./screenshots/home.png) | ![Graph](./screenshots/graph.png) | ![Settings](./screenshots/settings.png) |
 
-> 📌 Replace the above paths (`./screenshots/...`) with your actual screenshot image paths.
 
 ---
 
