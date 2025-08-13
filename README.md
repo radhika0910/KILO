@@ -1,50 +1,56 @@
-# Welcome to your Expo app 👋
+# 📊 KILO — Weight Tracker & BMI Calculator
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A sleek and efficient **weight tracker** and **BMI calculator** built with React Native.  
+**KILO** helps users monitor their health goals by logging their weight, tracking target goals, and visualizing their progress with an **interactive progress graph**.
 
-## Get started
+---
 
-1. Install dependencies
+## 🚀 Features
 
-   ```bash
-   npm install
-   ```
+- 📈 **Interactive Progress Graph** — View your weight trend over time.
+- 🎯 **Target Tracking** — Set and update your goal weight anytime.
+- 📏 **BMI Calculation** — Automatically calculates BMI for each entry.
+- 🕒 **Time Ranges** — Filter graph data by Week, Month, 6 Months, Year, or All time.
+- 🗑 **Data Management** — Delete individual entries or clear all saved data.
+- ⚙ **Custom Settings** — Update your target weight, height, and age.
+- 🎨 **Dark/Light Mode** — Adapts to your device’s theme.
+- 📱 **Cross-platform** — Works seamlessly on iOS, Android, and Web.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 📸 Screenshots
 
-In the output, you'll find options to open the app in a
+| Home Screen                     | Graph View                        | Settings Page                           |
+| ------------------------------- | --------------------------------- | --------------------------------------- |
+| ![Home](./screenshots/home.png) | ![Graph](./screenshots/graph.png) | ![Settings](./screenshots/settings.png) |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+> 📌 Replace the above paths (`./screenshots/...`) with your actual screenshot image paths.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🛠 Tech Stack
 
-When you're ready, run:
+- **React Native** — Core framework
+- **Expo Router** — Navigation
+- **AsyncStorage** — Local data storage
+- **react-native-chart-kit** — Graph rendering
+- **TypeScript** — Type safety
+- **Expo** — Development & deployment
+
+---
+
+## 📦 Installation & Setup
 
 ```bash
-npm run reset-project
+# Clone the repository
+git clone https://github.com/yourusername/kilo.git
+
+# Navigate into the project directory
+cd kilo
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm start
 ```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
