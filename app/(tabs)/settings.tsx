@@ -1,232 +1,513 @@
-import { Colors } from "@/constants/Colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Linking from "expo-linking";
-import React, { useState } from "react";
+// app/(tabs)/profile.tsx — Profile & Settings Tab
+
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Modal,
+  ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
-  View
-} from "react-native";
+  View,
+} from 'react-native';
+import * as Linking from 'expo-linking';
+import * as Haptics from 'expo-haptics';
 
-export default function TabTwoScreen() {
-  const colorScheme = useColorScheme() || "light";
+import { Colors } from '@/constants/Colors';
+import { Typography, Radius, Shadows, Spacing } from '@/constants/Theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useWeightData } from '@/hooks/useWeightData';
+import { useInsights } from '@/hooks/useInsights';
+import { clearAllData, exportAllData } from '@/utils/storage';
+import { calculateBMI, getBMICategory, getBMICategoryColor } from '@/utils/calculations';
+
+export default function ProfileScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
+  const isDark = colorScheme === 'dark';
 
-  const [confirmVisible, setConfirmVisible] = useState(false);
-  const [editField, setEditField] = useState<null | "targetWeight" | "height" | "age">(null);
-  const [inputValue, setInputValue] = useState("");
+  const { entries, profile, updateProfile, refresh } = useWeightData();
+  const insights = useInsights(entries, profile);
 
-  const handleDeleteAllData = async () => {
-    try {
-      await AsyncStorage.clear();
-      setConfirmVisible(false);
-    } catch (error) {
-      console.log("Error clearing data", error);
-    }
-  };
-
-  const handleMoreFromDeveloper = () => {
-    const url = "https://github.com/radhika0910"; 
-    Linking.openURL(url);
-  };
+  const [editField, setEditField] = useState<null | 'name' | 'targetWeight' | 'height' | 'age'>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
 
   const handleSaveField = async () => {
-    try {
-      const json = await AsyncStorage.getItem("weightData");
-      if (!json) return;
-      let data = JSON.parse(json);
+    if (!profile || !editField) return;
 
-      if (data.length > 0 && editField !== null) {
-        data[data.length - 1][editField] = parseFloat(inputValue);
+    let updatedProfile = { ...profile };
+
+    if (editField === 'name') {
+      updatedProfile.name = inputValue.trim() || profile.name;
+    } else {
+      const num = parseFloat(inputValue);
+      if (!num || num <= 0) {
+        Alert.alert('Invalid Value', 'Please enter a valid number.');
+        return;
       }
+      updatedProfile[editField] = num;
+    }
 
-      await AsyncStorage.setItem("weightData", JSON.stringify(data));
-      setEditField(null);
-      setInputValue("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await updateProfile(updatedProfile);
+    setEditField(null);
+    setInputValue('');
+  };
+
+  const handleExportData = async () => {
+    try {
+      const data = await exportAllData();
+      await Share.share({
+        message: data,
+        title: 'KILO - Weight Data Export',
+      });
     } catch (error) {
-      console.log("Error updating value", error);
+      Alert.alert('Export Failed', 'Could not export data.');
     }
   };
 
-  const renderEditModal = () => (
-    <Modal visible={!!editField} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalBox, { backgroundColor: theme.card }]}>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>
-            Change {editField === "targetWeight" ? "Target Weight" : editField === "height" ? "Height" : "Age"}
-          </Text>
+  const handleDeleteAll = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    const success = await clearAllData();
+    if (success) {
+      setConfirmDeleteVisible(false);
+      await refresh();
+      Alert.alert('Done', 'All data has been deleted.');
+    }
+  };
 
-          <TextInput
-            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-            placeholder="Enter value"
-            placeholderTextColor={theme.icon}
-            keyboardType="numeric"
-            value={inputValue}
-            onChangeText={setInputValue}
-          />
+  const handleMoreFromDev = () => {
+    Linking.openURL('https://github.com/radhika0910');
+  };
 
-          <View style={styles.modalButtons}>
-            <TouchableOpacity 
-              style={[styles.modalButton, { backgroundColor: theme.border }]} 
-              onPress={() => setEditField(null)}
-            >
-              <Text style={{ color: theme.text }}>Cancel</Text>
-            </TouchableOpacity>
+  const currentWeight = entries.length > 0 ? entries[entries.length - 1].weight : null;
+  const bmi = currentWeight && profile ? calculateBMI(currentWeight, profile.height) : 0;
+  const bmiColor = bmi > 0 ? getBMICategoryColor(bmi, isDark) : theme.textSecondary;
 
-            <TouchableOpacity 
-              style={[styles.modalButton, { backgroundColor: theme.highlight }]} 
-              onPress={handleSaveField}
-            >
-              <Text style={{ color: "#fff" }}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  const settingsItems = [
+    {
+      icon: '👤',
+      label: 'Name',
+      value: profile?.name || 'Not set',
+      onPress: () => {
+        setEditField('name');
+        setInputValue(profile?.name || '');
+      },
+    },
+    {
+      icon: '🎯',
+      label: 'Target Weight',
+      value: profile ? `${profile.targetWeight} kg` : '--',
+      onPress: () => {
+        setEditField('targetWeight');
+        setInputValue(profile?.targetWeight?.toString() || '');
+      },
+    },
+    {
+      icon: '📏',
+      label: 'Height',
+      value: profile ? `${profile.height} cm` : '--',
+      onPress: () => {
+        setEditField('height');
+        setInputValue(profile?.height?.toString() || '');
+      },
+    },
+    {
+      icon: '🎂',
+      label: 'Age',
+      value: profile ? `${profile.age} years` : '--',
+      onPress: () => {
+        setEditField('age');
+        setInputValue(profile?.age?.toString() || '');
+      },
+    },
+  ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      
+    <View style={[styles.page, { backgroundColor: theme.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profile Header */}
+        <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={[styles.avatar, { backgroundColor: theme.primary + '20' }]}>
+            <Text style={styles.avatarText}>
+              {(profile?.name?.[0] || '?').toUpperCase()}
+            </Text>
+          </View>
 
-      {/* Change Target Weight */}
-      <View style={[styles.listItem, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.listButton} onPress={() => setEditField("targetWeight")}>
-          <Text style={[styles.listText, { color: theme.text }]}>
-            🎯 Change Target Weight
+          <Text style={[styles.profileName, { color: theme.text }]}>
+            {profile?.name || 'User'}
           </Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Change Height */}
-      <View style={[styles.listItem, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.listButton} onPress={() => setEditField("height")}>
-          <Text style={[styles.listText, { color: theme.text }]}>
-            📏 Change Height
+          <View style={styles.profileStats}>
+            <View style={styles.profileStatItem}>
+              <Text style={[styles.profileStatValue, { color: theme.primary }]}>
+                {currentWeight || '--'}
+              </Text>
+              <Text style={[styles.profileStatLabel, { color: theme.textSecondary }]}>
+                Current (kg)
+              </Text>
+            </View>
+
+            <View style={[styles.profileStatDivider, { backgroundColor: theme.border }]} />
+
+            <View style={styles.profileStatItem}>
+              <Text style={[styles.profileStatValue, { color: bmiColor }]}>
+                {bmi > 0 ? bmi : '--'}
+              </Text>
+              <Text style={[styles.profileStatLabel, { color: theme.textSecondary }]}>
+                BMI
+              </Text>
+            </View>
+
+            <View style={[styles.profileStatDivider, { backgroundColor: theme.border }]} />
+
+            <View style={styles.profileStatItem}>
+              <Text style={[styles.profileStatValue, { color: theme.accent }]}>
+                {entries.length}
+              </Text>
+              <Text style={[styles.profileStatLabel, { color: theme.textSecondary }]}>
+                Entries
+              </Text>
+            </View>
+          </View>
+
+          {profile?.createdAt && (
+            <Text style={[styles.memberSince, { color: theme.textSecondary }]}>
+              Member since {new Date(profile.createdAt).toLocaleDateString('en-IN', {
+                month: 'long',
+                year: 'numeric',
+              })}
+            </Text>
+          )}
+        </View>
+
+        {/* Personal Info */}
+        <Text style={[styles.groupTitle, { color: theme.text }]}>Personal Info</Text>
+
+        {settingsItems.map((item, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+            onPress={item.onPress}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingLeft}>
+              <Text style={styles.settingIcon}>{item.icon}</Text>
+              <Text style={[styles.settingLabel, { color: theme.text }]}>{item.label}</Text>
+            </View>
+            <View style={styles.settingRight}>
+              <Text style={[styles.settingValue, { color: theme.textSecondary }]}>
+                {item.value}
+              </Text>
+              <Text style={[styles.chevron, { color: theme.icon }]}>›</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {/* Actions */}
+        <Text style={[styles.groupTitle, { color: theme.text }]}>Actions</Text>
+
+        <TouchableOpacity
+          style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+          onPress={handleExportData}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingLeft}>
+            <Text style={styles.settingIcon}>📤</Text>
+            <Text style={[styles.settingLabel, { color: theme.text }]}>Export Data</Text>
+          </View>
+          <Text style={[styles.chevron, { color: theme.icon }]}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+          onPress={handleMoreFromDev}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingLeft}>
+            <Text style={styles.settingIcon}>👩‍💻</Text>
+            <Text style={[styles.settingLabel, { color: theme.text }]}>More from Developer</Text>
+          </View>
+          <Text style={[styles.chevron, { color: theme.icon }]}>›</Text>
+        </TouchableOpacity>
+
+        {/* Danger Zone */}
+        <Text style={[styles.groupTitle, { color: theme.danger }]}>Danger Zone</Text>
+
+        <TouchableOpacity
+          style={[styles.settingItem, { backgroundColor: theme.danger + '08', borderColor: theme.danger + '30' }]}
+          onPress={() => setConfirmDeleteVisible(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingLeft}>
+            <Text style={styles.settingIcon}>🗑️</Text>
+            <Text style={[styles.settingLabel, { color: theme.danger }]}>Delete All Data</Text>
+          </View>
+          <Text style={[styles.chevron, { color: theme.danger }]}>›</Text>
+        </TouchableOpacity>
+
+        {/* App Info */}
+        <View style={styles.appInfo}>
+          <Text style={[styles.appName, { color: theme.primary }]}>KILO</Text>
+          <Text style={[styles.appVersion, { color: theme.textSecondary }]}>
+            Version 1.0.0
           </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Change Age */}
-      <View style={[styles.listItem, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.listButton} onPress={() => setEditField("age")}>
-          <Text style={[styles.listText, { color: theme.text }]}>
-            🎂 Change Age
+          <Text style={[styles.appTagline, { color: theme.textSecondary }]}>
+            Track. Transform. Triumph. 💜
           </Text>
-        </TouchableOpacity>
-      </View>
-      <View style={[styles.listItem, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.listButton} onPress={handleMoreFromDeveloper}>
-          <Text style={[styles.listText, { color: theme.text }]}>
-            📂 More from the Developer
-          </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
 
-      {/* Delete All Data */}
-      <View style={[styles.listItem, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.listButton} onPress={() => setConfirmVisible(true)}>
-          <Text style={[styles.listText, { color: "#FF3B30" }]}>
-            🗑 Delete All Data
-          </Text>
-        </TouchableOpacity>
-      </View>
+        <View style={{ height: 100 }} />
+      </ScrollView>
 
-     
-
-      {/* Confirmation Modal */}
-      <Modal visible={confirmVisible} transparent animationType="fade">
+      {/* Edit Field Modal */}
+      <Modal visible={!!editField} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: theme.card }]}>
+          <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Confirm Deletion
+              Change {editField === 'name' ? 'Name' :
+                editField === 'targetWeight' ? 'Target Weight' :
+                editField === 'height' ? 'Height' : 'Age'}
             </Text>
-            <Text style={[styles.modalMessage, { color: theme.icon }]}>
-              Are you sure you want to delete all app data? This action cannot be undone.
-            </Text>
+
+            <TextInput
+              style={[styles.modalInput, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+              placeholder="Enter value"
+              placeholderTextColor={theme.icon}
+              keyboardType={editField === 'name' ? 'default' : 'numeric'}
+              value={inputValue}
+              onChangeText={setInputValue}
+              autoFocus
+            />
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: theme.border }]} 
-                onPress={() => setConfirmVisible(false)}
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.border }]}
+                onPress={() => setEditField(null)}
               >
-                <Text style={{ color: theme.text }}>Cancel</Text>
+                <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: "#FF3B30" }]} 
-                onPress={handleDeleteAllData}
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.primary }]}
+                onPress={handleSaveField}
               >
-                <Text style={{ color: "#fff" }}>Delete</Text>
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Edit Field Modal */}
-      {renderEditModal()}
+      {/* Delete Confirmation Modal */}
+      <Modal visible={confirmDeleteVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
+            <Text style={styles.deleteEmoji}>⚠️</Text>
+            <Text style={[styles.modalTitle, { color: theme.text, textAlign: 'center' }]}>
+              Delete All Data?
+            </Text>
+            <Text style={[styles.modalMessage, { color: theme.textSecondary }]}>
+              This will permanently delete all your weight entries, profile, and settings. This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.border }]}
+                onPress={() => setConfirmDeleteVisible(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.danger }]}
+                onPress={handleDeleteAll}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  page: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
   },
-  listItem: {
-    borderBottomWidth: 1,
-  },
-  listButton: {
-    paddingVertical: 16,
-  },
-  listText: {
-    fontSize: 16,
-    fontWeight: "500",
+  content: {
+    padding: Spacing.xl,
   },
 
+  // Profile card
+  profileCard: {
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.xxl,
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    ...Shadows.md,
+  },
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  avatarText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  profileName: {
+    ...Typography.heading2,
+    marginBottom: Spacing.lg,
+  },
+  profileStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  profileStatItem: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  profileStatValue: {
+    ...Typography.statSmall,
+    marginBottom: 2,
+  },
+  profileStatLabel: {
+    ...Typography.caption,
+  },
+  profileStatDivider: {
+    width: 1,
+    height: 30,
+  },
+  memberSince: {
+    ...Typography.caption,
+    marginTop: Spacing.sm,
+  },
+
+  // Groups
+  groupTitle: {
+    ...Typography.heading3,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+
+  // Setting item
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingIcon: {
+    fontSize: 20,
+    marginRight: Spacing.md,
+  },
+  settingLabel: {
+    ...Typography.body,
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingValue: {
+    ...Typography.caption,
+    marginRight: Spacing.sm,
+  },
+  chevron: {
+    fontSize: 22,
+    fontWeight: '300',
+  },
+
+  // App info
+  appInfo: {
+    alignItems: 'center',
+    marginTop: Spacing.xxxl,
+    paddingTop: Spacing.xl,
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  appVersion: {
+    ...Typography.caption,
+    marginTop: 4,
+  },
+  appTagline: {
+    ...Typography.caption,
+    marginTop: Spacing.sm,
+    fontStyle: 'italic',
+  },
+
+  // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
   },
   modalBox: {
-    width: "100%",
+    width: '100%',
     maxWidth: 350,
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+    ...Typography.heading3,
+    marginBottom: Spacing.lg,
   },
   modalMessage: {
-    fontSize: 14,
-    marginBottom: 20,
+    ...Typography.caption,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+    lineHeight: 20,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    ...Typography.body,
+    marginBottom: Spacing.xl,
   },
   modalButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
   },
-  modalButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  modalBtn: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.md,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 20,
+  modalBtnText: {
+    ...Typography.bodyMedium,
+    fontWeight: '600',
+  },
+  deleteEmoji: {
+    fontSize: 40,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
   },
 });

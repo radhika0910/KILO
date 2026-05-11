@@ -1,13 +1,23 @@
+// components/ui/AppHeader.tsx — Premium gradient header for KILO
+
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/Colors';
+import { Typography } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface AppHeaderProps {
   title: string;
+  subtitle?: string;
   showBackButton?: boolean;
   onBackPress?: () => void;
   rightComponent?: React.ReactNode;
@@ -15,6 +25,7 @@ interface AppHeaderProps {
 
 export default function AppHeader({
   title,
+  subtitle,
   showBackButton = false,
   onBackPress,
   rightComponent,
@@ -24,7 +35,15 @@ export default function AppHeader({
   const theme = Colors[colorScheme ?? 'light'];
 
   return (
-    <View style={[styles.wrapper, { paddingTop: insets.top, backgroundColor: theme.background, borderBottomColor: theme.border }]}>
+    <View
+      style={[
+        styles.wrapper,
+        {
+          paddingTop: insets.top + 8,
+          backgroundColor: theme.background,
+        },
+      ]}
+    >
       <View style={styles.container}>
         {showBackButton ? (
           <TouchableOpacity onPress={onBackPress} style={styles.iconContainer}>
@@ -34,11 +53,16 @@ export default function AppHeader({
           <View style={styles.iconContainer} />
         )}
 
-        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-
-        <View style={styles.rightComponent}>
-          {rightComponent}
+        <View style={styles.titleContainer}>
+          <Text style={[styles.title, { color: theme.primary }]}>{title}</Text>
+          {subtitle && (
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              {subtitle}
+            </Text>
+          )}
         </View>
+
+        <View style={styles.rightComponent}>{rightComponent}</View>
       </View>
     </View>
   );
@@ -46,30 +70,30 @@ export default function AppHeader({
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderBottomWidth: 1,
-    elevation: 4,
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
     zIndex: 1000,
   },
   container: {
-    height: 56,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   iconContainer: {
     width: 40,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: Platform.OS === 'ios' ? '600' : 'bold',
+  titleContainer: {
     flex: 1,
-    textAlign: 'left',  
+  },
+  title: {
+    ...Typography.heading2,
+    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
+  },
+  subtitle: {
+    ...Typography.caption,
+    marginTop: 2,
   },
   rightComponent: {
     width: 40,
