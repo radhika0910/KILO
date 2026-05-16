@@ -1,6 +1,8 @@
 // app/(tabs)/profile.tsx — Profile & Settings Tab
 
-import React, { useEffect, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
+import React, { useState } from 'react';
 import {
   Alert,
   Modal,
@@ -12,16 +14,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Linking from 'expo-linking';
-import * as Haptics from 'expo-haptics';
 
+import StatusModal from '@/components/ui/StatusModal';
 import { Colors } from '@/constants/Colors';
-import { Typography, Radius, Shadows, Spacing } from '@/constants/Theme';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/Theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useWeightData } from '@/hooks/useWeightData';
 import { useInsights } from '@/hooks/useInsights';
+import { useWeightData } from '@/hooks/useWeightData';
+import { calculateBMI, getBMICategoryColor } from '@/utils/calculations';
 import { clearAllData, exportAllData } from '@/utils/storage';
-import { calculateBMI, getBMICategory, getBMICategoryColor } from '@/utils/calculations';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -33,7 +34,8 @@ export default function ProfileScreen() {
 
   const [editField, setEditField] = useState<null | 'name' | 'targetWeight' | 'height' | 'age'>(null);
   const [inputValue, setInputValue] = useState('');
-  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   const handleSaveField = async () => {
     if (!profile || !editField) return;
@@ -73,9 +75,11 @@ export default function ProfileScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     const success = await clearAllData();
     if (success) {
-      setConfirmDeleteVisible(false);
+      setShowDeleteConfirm(false);
       await refresh();
-      Alert.alert('Done', 'All data has been deleted.');
+      setTimeout(() => {
+        setShowDeleteSuccess(true);
+      }, 500);
     }
   };
 
@@ -213,7 +217,7 @@ export default function ProfileScreen() {
         {/* Actions */}
         <Text style={[styles.groupTitle, { color: theme.text }]}>Actions</Text>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
           onPress={handleExportData}
           activeOpacity={0.7}
@@ -223,7 +227,7 @@ export default function ProfileScreen() {
             <Text style={[styles.settingLabel, { color: theme.text }]}>Export Data</Text>
           </View>
           <Text style={[styles.chevron, { color: theme.icon }]}>›</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
@@ -242,7 +246,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: theme.danger + '08', borderColor: theme.danger + '30' }]}
-          onPress={() => setConfirmDeleteVisible(true)}
+          onPress={() => setShowDeleteConfirm(true)}
           activeOpacity={0.7}
         >
           <View style={styles.settingLeft}>
@@ -273,7 +277,7 @@ export default function ProfileScreen() {
             <Text style={[styles.modalTitle, { color: theme.text }]}>
               Change {editField === 'name' ? 'Name' :
                 editField === 'targetWeight' ? 'Target Weight' :
-                editField === 'height' ? 'Height' : 'Age'}
+                  editField === 'height' ? 'Height' : 'Age'}
             </Text>
 
             <TextInput
@@ -305,36 +309,27 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal visible={confirmDeleteVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: theme.surface }]}>
-            <Text style={styles.deleteEmoji}>⚠️</Text>
-            <Text style={[styles.modalTitle, { color: theme.text, textAlign: 'center' }]}>
-              Delete All Data?
-            </Text>
-            <Text style={[styles.modalMessage, { color: theme.textSecondary }]}>
-              This will permanently delete all your weight entries, profile, and settings. This action cannot be undone.
-            </Text>
+      {/* Premium Status Modals */}
+      <StatusModal
+        visible={showDeleteConfirm}
+        type="danger"
+        title="Delete All Data?"
+        message="This action is permanent and cannot be undone. All your weights, goals, and profile settings will be wiped."
+        confirmLabel="Delete Everything"
+        onConfirm={handleDeleteAll}
+        onClose={() => setShowDeleteConfirm(false)}
+        icon="⚠️"
+      />
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: theme.border }]}
-                onPress={() => setConfirmDeleteVisible(false)}
-              >
-                <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: theme.danger }]}
-                onPress={handleDeleteAll}
-              >
-                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <StatusModal
+        visible={showDeleteSuccess}
+        type="success"
+        title="Data Wiped"
+        message="Everything has been cleared successfully. You can now start a fresh journey whenever you're ready."
+        confirmLabel="Got it"
+        onConfirm={() => setShowDeleteSuccess(false)}
+        icon="✅"
+      />
     </View>
   );
 }

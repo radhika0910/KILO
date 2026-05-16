@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown, FadeIn, FadeInRight } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/Colors';
 import { Typography, Radius, Shadows, Spacing } from '@/constants/Theme';
@@ -59,20 +60,37 @@ export default function ProgressScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.background }]}>
+      {/* Decorative Background Elements */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Animated.View 
+          entering={FadeIn.delay(400).duration(2000)}
+          style={[styles.glowCircle, { top: -50, right: -100, backgroundColor: theme.info + '15' }]} 
+        />
+        <Animated.View 
+          entering={FadeIn.delay(900).duration(2000)}
+          style={[styles.glowCircle, { bottom: 200, left: -80, backgroundColor: theme.accent + '15', width: 250, height: 250 }]} 
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section Title */}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Weight Progress
-        </Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-          Visualize your journey over time
-        </Text>
+        <Animated.View entering={FadeInDown.delay(100).duration(600)}>
+          {/* Section Title */}
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Weight Progress
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
+            Visualize your journey over time
+          </Text>
+        </Animated.View>
 
         {/* Time Range Selector */}
-        <View style={[styles.rangeSelector, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Animated.View 
+          entering={FadeInDown.delay(200).duration(600)}
+          style={[styles.rangeSelector, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+        >
           {TIME_RANGES.map(({ key, label }) => (
             <TouchableOpacity
               key={key}
@@ -97,17 +115,22 @@ export default function ProgressScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Chart */}
-        <WeightChart
-          entries={filteredEntries}
-          targetWeight={profile?.targetWeight}
-          height={220}
-        />
+        <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+          <WeightChart
+            entries={filteredEntries}
+            targetWeight={profile?.targetWeight}
+            height={220}
+          />
+        </Animated.View>
 
         {/* Stats Cards */}
-        <View style={styles.statsRow}>
+        <Animated.View 
+          entering={FadeInDown.delay(400).duration(600)}
+          style={styles.statsRow}
+        >
           <StatCard
             label="HIGHEST"
             value={insights.stats.highest > 0 ? insights.stats.highest.toString() : '--'}
@@ -125,9 +148,12 @@ export default function ProgressScreen() {
             accentColor={theme.success}
             compact
           />
-        </View>
+        </Animated.View>
 
-        <View style={styles.statsRow}>
+        <Animated.View 
+          entering={FadeInDown.delay(500).duration(600)}
+          style={styles.statsRow}
+        >
           <StatCard
             label="AVERAGE"
             value={insights.stats.average > 0 ? insights.stats.average.toString() : '--'}
@@ -147,17 +173,20 @@ export default function ProgressScreen() {
             accentColor={insights.stats.totalChange <= 0 ? theme.success : theme.warning}
             compact
           />
-        </View>
+        </Animated.View>
 
         {/* Full History */}
-        <View style={styles.historyHeader}>
+        <Animated.View 
+          entering={FadeInDown.delay(600).duration(600)}
+          style={styles.historyHeader}
+        >
           <Text style={[styles.historyTitle, { color: theme.text }]}>
             All Entries
           </Text>
           <Text style={[styles.historyCount, { color: theme.textSecondary }]}>
             {entries.length} entries
           </Text>
-        </View>
+        </Animated.View>
 
         {[...entries].reverse().map((entry, idx) => {
           const d = new Date(entry.date);
@@ -170,65 +199,72 @@ export default function ProgressScreen() {
             : null;
 
           return (
-            <TouchableOpacity
+            <Animated.View
               key={entry.id}
-              onLongPress={() => handleDeleteEntry(entry.id, entry.weight)}
-              delayLongPress={500}
-              activeOpacity={0.7}
-              style={[
-                styles.historyItem,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.cardBorder,
-                },
-              ]}
+              entering={FadeInRight.delay(700 + idx * 50).duration(500)}
             >
-              <View style={styles.historyLeft}>
-                <View style={[styles.historyTimeline, { backgroundColor: theme.primary + '30' }]}>
-                  <View style={[styles.historyDot, { backgroundColor: theme.primary }]} />
-                </View>
-                <View>
-                  <Text style={[styles.historyWeight, { color: theme.text }]}>
-                    {entry.weight} kg
-                  </Text>
-                  <Text style={[styles.historyDate, { color: theme.textSecondary }]}>
-                    {isToday ? 'Today' : d.toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                    {' · '}
-                    {d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                  {entry.note && (
-                    <Text style={[styles.historyNote, { color: theme.textSecondary }]}>
-                      📝 {entry.note}
+              <TouchableOpacity
+                onLongPress={() => handleDeleteEntry(entry.id, entry.weight)}
+                delayLongPress={500}
+                activeOpacity={0.7}
+                style={[
+                  styles.historyItem,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.cardBorder,
+                  },
+                ]}
+              >
+                <View style={styles.historyLeft}>
+                  <View style={[styles.historyTimeline, { backgroundColor: theme.primary + '30' }]}>
+                    <View style={[styles.historyDot, { backgroundColor: theme.primary }]} />
+                  </View>
+                  <View>
+                    <Text style={[styles.historyWeight, { color: theme.text }]}>
+                      {entry.weight} kg
                     </Text>
-                  )}
+                    <Text style={[styles.historyDate, { color: theme.textSecondary }]}>
+                      {isToday ? 'Today' : d.toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                      {' · '}
+                      {d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    {entry.note && (
+                      <Text style={[styles.historyNote, { color: theme.textSecondary }]}>
+                        📝 {entry.note}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-              </View>
 
-              {diff !== null && diff !== 0 && (
-                <Text
-                  style={[
-                    styles.historyDiff,
-                    { color: diff < 0 ? theme.success : theme.warning },
-                  ]}
-                >
-                  {diff > 0 ? '+' : ''}{diff}
-                </Text>
-              )}
-            </TouchableOpacity>
+                {diff !== null && diff !== 0 && (
+                  <Text
+                    style={[
+                      styles.historyDiff,
+                      { color: diff < 0 ? theme.success : theme.warning },
+                    ]}
+                  >
+                    {diff > 0 ? '+' : ''}{diff}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
           );
         })}
 
         {entries.length === 0 && (
-          <View style={[styles.emptyState, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <Animated.View 
+            entering={FadeInDown.delay(700).duration(600)}
+            style={[styles.emptyState, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+          >
             <Text style={styles.emptyEmoji}>📈</Text>
             <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
               Start logging to see your progress
             </Text>
-          </View>
+          </Animated.View>
         )}
 
         <View style={{ height: 100 }} />
@@ -351,5 +387,12 @@ const styles = StyleSheet.create({
   emptyText: {
     ...Typography.body,
     textAlign: 'center',
+  },
+  glowCircle: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    opacity: 0.4,
   },
 });

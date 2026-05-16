@@ -3,6 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
+  Image,
   Platform,
   StyleSheet,
   Text,
@@ -54,7 +55,13 @@ export default function AppHeader({
         )}
 
         <View style={styles.titleContainer}>
-          <Text style={[styles.title, { color: theme.primary }]}>{title}</Text>
+          <View style={styles.titleRow}>
+            <Image 
+              source={require('@/assets/images/logo.png')} 
+              style={styles.headerLogo} 
+            />
+            <Text style={[styles.title, { color: theme.primary }]}>{title}</Text>
+          </View>
           {subtitle && (
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               {subtitle}
@@ -86,6 +93,16 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerLogo: {
+    width: 28,
+    height: 28,
+    marginRight: 10,
+    borderRadius: 6,
   },
   title: {
     ...Typography.heading2,

@@ -40,7 +40,15 @@ export default function StatCard({ label, value, unit, icon, accentColor, compac
       <Text style={[styles.label, { color: theme.textSecondary }]}>{label}</Text>
 
       <View style={styles.valueRow}>
-        <Text style={[compact ? styles.valueCompact : styles.value, { color: theme.text }]}>
+        <Text 
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={[
+            compact ? styles.valueCompact : styles.value, 
+            { color: theme.text },
+            typeof value === 'string' && value.length > 8 && { fontSize: compact ? 16 : 20 }
+          ]}
+        >
           {value}
         </Text>
         {unit && (

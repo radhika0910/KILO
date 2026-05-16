@@ -1,10 +1,12 @@
 // app/(tabs)/index.tsx — KILO Dashboard (Home Tab)
 
+import * as Haptics from 'expo-haptics';
 import React, { useCallback, useState } from 'react';
 import {
   Alert,
-  Dimensions,
+  Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   RefreshControl,
@@ -13,20 +15,31 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  Layout,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming
+} from 'react-native-reanimated';
 
-import { Colors } from '@/constants/Colors';
-import { Typography, Radius, Shadows, Spacing } from '@/constants/Theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { useWeightData } from '@/hooks/useWeightData';
-import { saveUserProfile, saveWeightEntry } from '@/utils/storage';
-import { useInsights } from '@/hooks/useInsights';
+import ProgressRing from '@/components/ui/ProgressRing';
 import StatCard from '@/components/ui/StatCard';
 import StreakBadge from '@/components/ui/StreakBadge';
-import ProgressRing from '@/components/ui/ProgressRing';
+import Confetti from '@/components/ui/Confetti';
+import StatusModal from '@/components/ui/StatusModal';
+import { Colors } from '@/constants/Colors';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/Theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useInsights } from '@/hooks/useInsights';
+import { useWeightData } from '@/hooks/useWeightData';
 import { calculateBMI, getBMICategoryColor } from '@/utils/calculations';
+import { saveUserProfile, saveWeightEntry } from '@/utils/storage';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -37,6 +50,8 @@ export default function HomeScreen() {
   const insights = useInsights(entries, profile);
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [noteInput, setNoteInput] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -71,9 +86,29 @@ export default function HomeScreen() {
       setNoteInput('');
       setModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Check for Goal Achievement
+      if (profile && weight <= profile.targetWeight) {
+        setTimeout(() => {
+          setShowConfetti(true);
+          setShowGoalModal(true);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }, 600);
+      }
     } else {
       Alert.alert('Error', 'Failed to save entry. Please try again.');
     }
+  };
+
+  const handleRateApp = () => {
+    setShowGoalModal(false);
+    // Open Play Store / App Store link
+    const url = Platform.OS === 'ios' 
+      ? 'https://apps.apple.com/app/id123456789' // Replace with real ID
+      : 'market://details?id=com.radhika0910.kilo';
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Error', 'Could not open store link.');
+    });
   };
 
   const handleOnboard = async () => {
@@ -112,80 +147,132 @@ export default function HomeScreen() {
   const prevWeight = entries.length > 1 ? entries[entries.length - 2].weight : null;
   const weightDiff = latestWeight && prevWeight ? parseFloat((latestWeight - prevWeight).toFixed(1)) : null;
 
+  const pulse1 = useSharedValue(1);
+  const pulse2 = useSharedValue(1);
+
+  React.useEffect(() => {
+    pulse1.value = withRepeat(
+      withSequence(withTiming(1.1, { duration: 6000 }), withTiming(1, { duration: 6000 })),
+      -1,
+      true
+    );
+    pulse2.value = withRepeat(
+      withSequence(withTiming(1.15, { duration: 8000 }), withTiming(0.95, { duration: 8000 })),
+      -1,
+      true
+    );
+  }, []);
+
+  const glowStyle1 = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse1.value }],
+    opacity: 0.08 + (pulse1.value - 1) * 0.1, 
+  }));
+
+  const glowStyle2 = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse2.value }],
+    opacity: 0.05 + (pulse2.value - 1) * 0.08,
+  }));
+
   // ─── Onboarding Screen ─────────────────────────────────────
 
   if (needsOnboarding && !loading) {
     return (
       <View style={[styles.page, { backgroundColor: theme.background }]}>
+        {/* Decorative Background Elements */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Animated.View style={[styles.glowCircle, glowStyle1, { top: -50, right: -100, backgroundColor: theme.primary }]} />
+          <Animated.View style={[styles.glowCircle, glowStyle2, { bottom: -100, left: -50, backgroundColor: theme.accent }]} />
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.onboardContainer}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.onboardEmoji}>🏋️</Text>
-          <Text style={[styles.onboardTitle, { color: theme.text }]}>
-            Welcome to KILO
-          </Text>
-          <Text style={[styles.onboardSubtitle, { color: theme.textSecondary }]}>
-            Let's set up your profile to get started
-          </Text>
+          <Animated.View entering={FadeInDown.delay(100).duration(600)}>
+            <Text style={styles.onboardEmoji}>🏋️</Text>
+            <View style={styles.onboardHeaderRow}>
+              <Image 
+                source={require('@/assets/images/logo.png')} 
+                style={styles.onboardLogo} 
+                resizeMode="contain"
+              />
+              <Text style={[styles.onboardTitle, { color: theme.text }]}>
+                Welcome to KILO
+              </Text>
+            </View>
+            <Text style={[styles.onboardSubtitle, { color: theme.textSecondary }]}>
+              Let's set up your profile to get started
+            </Text>
+          </Animated.View>
 
           <View style={styles.onboardForm}>
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>YOUR NAME</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              placeholder="e.g. Radhika"
-              placeholderTextColor={theme.icon}
-              value={onboardForm.name}
-              onChangeText={(v) => setOnboardForm(p => ({ ...p, name: v }))}
-            />
+            <Animated.View entering={FadeInDown.delay(200).duration(600)}>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>YOUR NAME</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                placeholder="e.g. Radhika"
+                placeholderTextColor={theme.icon}
+                value={onboardForm.name}
+                onChangeText={(v) => setOnboardForm(p => ({ ...p, name: v }))}
+              />
+            </Animated.View>
 
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>CURRENT WEIGHT (KG)</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              placeholder="e.g. 70"
-              placeholderTextColor={theme.icon}
-              keyboardType="numeric"
-              value={onboardForm.currentWeight}
-              onChangeText={(v) => setOnboardForm(p => ({ ...p, currentWeight: v }))}
-            />
+            <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>CURRENT WEIGHT (KG)</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                placeholder="e.g. 70"
+                placeholderTextColor={theme.icon}
+                keyboardType="numeric"
+                value={onboardForm.currentWeight}
+                onChangeText={(v) => setOnboardForm(p => ({ ...p, currentWeight: v }))}
+              />
+            </Animated.View>
+            <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>TARGET WEIGHT (KG)</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                placeholder="e.g. 60"
+                placeholderTextColor={theme.icon}
+                keyboardType="numeric"
+                value={onboardForm.targetWeight}
+                onChangeText={(v) => setOnboardForm(p => ({ ...p, targetWeight: v }))}
+              />
+            </Animated.View>
 
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>TARGET WEIGHT (KG)</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              placeholder="e.g. 60"
-              placeholderTextColor={theme.icon}
-              keyboardType="numeric"
-              value={onboardForm.targetWeight}
-              onChangeText={(v) => setOnboardForm(p => ({ ...p, targetWeight: v }))}
-            />
+            <Animated.View entering={FadeInDown.delay(500).duration(600)}>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>HEIGHT (CM)</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                placeholder="e.g. 165"
+                placeholderTextColor={theme.icon}
+                keyboardType="numeric"
+                value={onboardForm.height}
+                onChangeText={(v) => setOnboardForm(p => ({ ...p, height: v }))}
+              />
+            </Animated.View>
 
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>HEIGHT (CM)</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              placeholder="e.g. 165"
-              placeholderTextColor={theme.icon}
-              keyboardType="numeric"
-              value={onboardForm.height}
-              onChangeText={(v) => setOnboardForm(p => ({ ...p, height: v }))}
-            />
+            <Animated.View entering={FadeInDown.delay(600).duration(600)}>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>AGE</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                placeholder="e.g. 25"
+                placeholderTextColor={theme.icon}
+                keyboardType="numeric"
+                value={onboardForm.age}
+                onChangeText={(v) => setOnboardForm(p => ({ ...p, age: v }))}
+              />
+            </Animated.View>
 
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>AGE</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              placeholder="e.g. 25"
-              placeholderTextColor={theme.icon}
-              keyboardType="numeric"
-              value={onboardForm.age}
-              onChangeText={(v) => setOnboardForm(p => ({ ...p, age: v }))}
-            />
-
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.primary }]}
-              onPress={handleOnboard}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.primaryButtonText}>Start My Journey 🚀</Text>
-            </TouchableOpacity>
+            <Animated.View entering={FadeInDown.delay(700).duration(600)}>
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: theme.primary, marginTop: Spacing.xl }]}
+                onPress={handleOnboard}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.primaryButtonText}>Start My Journey 🚀</Text>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         </ScrollView>
       </View>
@@ -196,6 +283,19 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.background }]}>
+      {/* Decorative Background Elements */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Animated.View
+          style={[styles.glowCircle, glowStyle1, { top: -100, left: -50, backgroundColor: theme.primary }]}
+        />
+        <Animated.View
+          style={[styles.glowCircle, glowStyle2, { top: 200, right: -80, backgroundColor: theme.accent, width: 250, height: 250 }]}
+        />
+        <Animated.View
+          style={[styles.glowCircle, glowStyle1, { bottom: 100, left: -100, backgroundColor: theme.info }]}
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -208,7 +308,10 @@ export default function HomeScreen() {
         }
       >
         {/* Greeting + Streak */}
-        <View style={styles.greetingRow}>
+        <Animated.View
+          entering={FadeInDown.delay(100).duration(600)}
+          style={styles.greetingRow}
+        >
           <View style={{ flex: 1 }}>
             <Text style={[styles.greeting, { color: theme.textSecondary }]}>
               {getGreeting()}, {profile?.name || 'there'}
@@ -220,11 +323,14 @@ export default function HomeScreen() {
           {insights.streak > 0 && (
             <StreakBadge streak={insights.streak} compact />
           )}
-        </View>
+        </Animated.View>
 
         {/* Progress Ring + Current Weight */}
         {latestWeight && profile && (
-          <View style={[styles.heroCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <Animated.View
+            entering={FadeInDown.delay(200).duration(600)}
+            style={[styles.heroCard, { backgroundColor: isDark ? theme.card + '90' : theme.card, borderColor: theme.cardBorder }]}
+          >
             <View style={styles.heroRow}>
               <ProgressRing
                 progress={insights.progress}
@@ -267,11 +373,14 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {/* Quick Stats */}
-        <View style={styles.statsGrid}>
+        <Animated.View
+          entering={FadeInDown.delay(300).duration(600)}
+          style={styles.statsGrid}
+        >
           <StatCard
             label="BMI"
             value={insights.bmi > 0 ? insights.bmi.toString() : '--'}
@@ -295,24 +404,30 @@ export default function HomeScreen() {
             accentColor={theme.info}
             compact
           />
-        </View>
+        </Animated.View>
 
         {/* Recent Entries */}
-        <View style={styles.sectionHeader}>
+        <Animated.View
+          entering={FadeInDown.delay(400).duration(600)}
+          style={styles.sectionHeader}
+        >
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Entries</Text>
           <Text style={[styles.sectionAction, { color: theme.primary }]}>
             {entries.length} total
           </Text>
-        </View>
+        </Animated.View>
 
         {entries.length === 0 ? (
-          <View style={[styles.emptyState, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <Animated.View
+            entering={FadeInDown.delay(500).duration(600)}
+            style={[styles.emptyState, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+          >
             <Text style={styles.emptyEmoji}>📝</Text>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>No entries yet</Text>
             <Text style={[styles.emptyDesc, { color: theme.textSecondary }]}>
               Tap the + button to log your first weight
             </Text>
-          </View>
+          </Animated.View>
         ) : (
           [...entries].reverse().slice(0, 7).map((entry, idx) => {
             const d = new Date(entry.date);
@@ -320,12 +435,14 @@ export default function HomeScreen() {
             const isToday = new Date().toDateString() === d.toDateString();
 
             return (
-              <View
+              <Animated.View
                 key={entry.id}
+                entering={FadeInRight.delay(500 + idx * 100).duration(500)}
+                layout={Layout.springify()}
                 style={[
                   styles.entryItem,
                   {
-                    backgroundColor: theme.card,
+                    backgroundColor: isDark ? theme.card + '80' : theme.card,
                     borderColor: isToday ? theme.primary + '40' : theme.cardBorder,
                     borderWidth: isToday ? 1.5 : 1,
                   },
@@ -356,7 +473,7 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 )}
-              </View>
+              </Animated.View>
             );
           })
         )}
@@ -380,49 +497,76 @@ export default function HomeScreen() {
       {/* Quick Log Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <View style={[styles.modalSheet, { backgroundColor: theme.surface }]}>
             <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
 
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Log Weight</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={[styles.modalClose, { color: theme.textSecondary }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>WEIGHT (KG)</Text>
-            <TextInput
-              style={[styles.weightInputLarge, { color: theme.text, borderColor: theme.primary + '40', backgroundColor: theme.card }]}
-              placeholder="0.0"
-              placeholderTextColor={theme.icon}
-              keyboardType="numeric"
-              value={weightInput}
-              onChangeText={setWeightInput}
-              autoFocus
-            />
-
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>NOTE (OPTIONAL)</Text>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              placeholder="e.g. After workout"
-              placeholderTextColor={theme.icon}
-              value={noteInput}
-              onChangeText={setNoteInput}
-            />
-
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.primary }]}
-              onPress={handleQuickLog}
-              activeOpacity={0.8}
+            <ScrollView 
+              bounces={false} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
-              <Text style={styles.primaryButtonText}>Save Entry</Text>
-            </TouchableOpacity>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Log Weight</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Text style={[styles.modalClose, { color: theme.textSecondary }]}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>WEIGHT (KG)</Text>
+              <TextInput
+                style={[styles.weightInputLarge, { color: theme.text, borderColor: theme.primary + '40', backgroundColor: theme.card }]}
+                placeholder="0.0"
+                placeholderTextColor={theme.icon}
+                keyboardType="numeric"
+                value={weightInput}
+                onChangeText={setWeightInput}
+                autoFocus
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>NOTE (OPTIONAL)</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                placeholder="e.g. After workout"
+                placeholderTextColor={theme.icon}
+                value={noteInput}
+                onChangeText={setNoteInput}
+                multiline={false}
+              />
+
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: theme.primary, marginTop: Spacing.lg }]}
+                onPress={handleQuickLog}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.primaryButtonText}>Save Entry</Text>
+              </TouchableOpacity>
+              
+              {/* Extra space for keyboard comfort */}
+              <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Celebratory Components */}
+      {showConfetti && (
+        <Confetti onAnimationEnd={() => setShowConfetti(false)} />
+      )}
+
+      <StatusModal
+        visible={showGoalModal}
+        type="success"
+        title="GOAL REACHED! 🎉"
+        message="Congratulations! You've successfully hit your target weight. Your dedication has paid off. Ready to celebrate?"
+        confirmLabel="Rate the App ⭐"
+        onConfirm={handleRateApp}
+        onClose={() => setShowGoalModal(false)}
+        icon="🏆"
+      />
     </View>
   );
 }
@@ -619,7 +763,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: Radius.xxl,
     borderTopRightRadius: Radius.xxl,
     padding: Spacing.xxl,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === 'ios' ? 60 : 40,
+    maxHeight: '85%',
   },
   modalHandle: {
     width: 40,
@@ -686,9 +831,19 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: Spacing.md,
   },
+  onboardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  onboardLogo: {
+    width: 36,
+    height: 36,
+    marginRight: 12,
+    borderRadius: 8,
+  },
   onboardTitle: {
     ...Typography.heading1,
-    marginBottom: Spacing.sm,
   },
   onboardSubtitle: {
     ...Typography.body,
@@ -696,5 +851,12 @@ const styles = StyleSheet.create({
   },
   onboardForm: {
     gap: 4,
+  },
+  glowCircle: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    opacity: 0.4,
   },
 });
