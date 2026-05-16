@@ -43,7 +43,11 @@ export const useWeightData = (): UseWeightDataReturn => {
         getWeightEntries(),
         getUserProfile(),
       ]);
-      setEntries(loadedEntries);
+      // Sort entries chronologically
+      const sortedEntries = loadedEntries.sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      setEntries(sortedEntries);
       setProfile(loadedProfile);
     } catch (error) {
       console.error('[useWeightData] Failed to load:', error);
@@ -59,7 +63,12 @@ export const useWeightData = (): UseWeightDataReturn => {
   const addEntry = useCallback(async (weight: number, note?: string): Promise<boolean> => {
     const entry = await saveWeightEntry(weight, note);
     if (entry) {
-      setEntries(prev => [...prev, entry]);
+      setEntries(prev => {
+        const newEntries = [...prev, entry];
+        return newEntries.sort((a, b) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+      });
       return true;
     }
     return false;

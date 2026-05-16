@@ -9,6 +9,7 @@ import {
   ScrollView,
   Share,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -23,6 +24,7 @@ import { useInsights } from '@/hooks/useInsights';
 import { useWeightData } from '@/hooks/useWeightData';
 import { calculateBMI, getBMICategoryColor } from '@/utils/calculations';
 import { clearAllData, exportAllData } from '@/utils/storage';
+import { requestNotificationPermissions, scheduleDailyReminder, cancelAllReminders } from '@/utils/notifications';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -36,6 +38,7 @@ export default function ProfileScreen() {
   const [inputValue, setInputValue] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
 
   const handleSaveField = async () => {
     if (!profile || !editField) return;
@@ -80,6 +83,22 @@ export default function ProfileScreen() {
       setTimeout(() => {
         setShowDeleteSuccess(true);
       }, 500);
+    }
+  };
+
+  const handleToggleReminders = async (value: boolean) => {
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (granted) {
+        await scheduleDailyReminder(9, 0); // Default 9 AM
+        setRemindersEnabled(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert('Permission Denied', 'Please enable notifications in your phone settings to receive reminders.');
+      }
+    } else {
+      await cancelAllReminders();
+      setRemindersEnabled(false);
     }
   };
 
@@ -217,17 +236,18 @@ export default function ProfileScreen() {
         {/* Actions */}
         <Text style={[styles.groupTitle, { color: theme.text }]}>Actions</Text>
 
-        {/* <TouchableOpacity
-          style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-          onPress={handleExportData}
-          activeOpacity={0.7}
-        >
+        <View style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <View style={styles.settingLeft}>
-            <Text style={styles.settingIcon}>📤</Text>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Export Data</Text>
+            <Text style={styles.settingIcon}>🔔</Text>
+            <Text style={[styles.settingLabel, { color: theme.text }]}>Daily Reminders</Text>
           </View>
-          <Text style={[styles.chevron, { color: theme.icon }]}>›</Text>
-        </TouchableOpacity> */}
+          <Switch
+            value={remindersEnabled}
+            onValueChange={handleToggleReminders}
+            trackColor={{ false: theme.border, true: theme.primary + '80' }}
+            thumbColor={remindersEnabled ? theme.primary : '#f4f3f4'}
+          />
+        </View>
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}

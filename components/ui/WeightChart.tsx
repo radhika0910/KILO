@@ -19,15 +19,20 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
   const theme = Colors[colorScheme];
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
 
-  const screenWidth = Dimensions.get('window').width - 40; // padding
+  const screenWidth = Dimensions.get('window').width - 64; // accounted for page and card padding
 
   const chartData = useMemo(() => {
     if (entries.length < 2) return null;
 
-    const weights = entries.map(e => e.weight);
+    // Ensure entries are sorted chronologically
+    const sorted = [...entries].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const weights = sorted.map(e => e.weight);
     const padding = 20;
-    const leftPad = 45;
-    const rightPad = 15;
+    const leftPad = 40;
+    const rightPad = 45; // More room for 'Goal' text
     const topPad = 20;
     const bottomPad = 30;
 
@@ -39,8 +44,8 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
     const range = maxW - minW || 1;
 
     // Points
-    const points = entries.map((entry, i) => ({
-      x: leftPad + (i / (entries.length - 1)) * graphWidth,
+    const points = sorted.map((entry, i) => ({
+      x: leftPad + (i / (sorted.length - 1)) * graphWidth,
       y: topPad + (1 - (entry.weight - minW) / range) * graphHeight,
       weight: entry.weight,
       date: entry.date,
@@ -77,9 +82,9 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
 
     // X labels (show max 5)
     const xLabels: Array<{ x: number; label: string }> = [];
-    const step = Math.max(1, Math.floor(entries.length / 5));
-    for (let i = 0; i < entries.length; i += step) {
-      const d = new Date(entries[i].date);
+    const step = Math.max(1, Math.floor(sorted.length / 5));
+    for (let i = 0; i < sorted.length; i += step) {
+      const d = new Date(sorted[i].date);
       xLabels.push({
         x: points[i].x,
         label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
@@ -87,10 +92,10 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
     }
     // Always include last
     if (xLabels.length > 0) {
-      const lastIdx = entries.length - 1;
+      const lastIdx = sorted.length - 1;
       const lastX = points[lastIdx].x;
       if (Math.abs(lastX - xLabels[xLabels.length - 1].x) > 30) {
-        const d = new Date(entries[lastIdx].date);
+        const d = new Date(sorted[lastIdx].date);
         xLabels.push({
           x: lastX,
           label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
@@ -112,7 +117,13 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
     );
   }
 
-  const selectedEntry = selectedPoint !== null ? entries[selectedPoint] : null;
+  const sortedForTooltip = useMemo(() => {
+    return [...entries].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  }, [entries]);
+
+  const selectedEntry = selectedPoint !== null ? sortedForTooltip[selectedPoint] : null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -181,7 +192,7 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
         {chartData.xLabels.map((label, i) => (
           <SvgText
             key={`xlabel-${i}`}
-            x={label.x}
+            x={Math.min(Math.max(label.x, 20), screenWidth - 20)}
             y={chartHeight - 5}
             fontSize={9}
             fill={theme.textSecondary}

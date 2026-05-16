@@ -156,7 +156,7 @@ export default function ProgressScreen() {
         >
           <StatCard
             label="AVERAGE"
-            value={insights.stats.average > 0 ? insights.stats.average.toString() : '--'}
+            value={insights.stats.average > 0 ? insights.stats.average.toFixed(1) : '--'}
             unit="kg"
             icon="📊"
             accentColor={theme.info}
@@ -166,7 +166,7 @@ export default function ProgressScreen() {
           <StatCard
             label="CHANGE"
             value={insights.stats.totalChange !== 0
-              ? `${insights.stats.totalChange > 0 ? '+' : ''}${insights.stats.totalChange}`
+              ? `${insights.stats.totalChange > 0 ? '+' : ''}${insights.stats.totalChange.toFixed(1)}`
               : '--'}
             unit="kg"
             icon={insights.stats.totalChange <= 0 ? '⬇️' : '⬆️'}
