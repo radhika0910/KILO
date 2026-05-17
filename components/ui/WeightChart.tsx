@@ -15,7 +15,8 @@ interface WeightChartProps {
 }
 
 export default function WeightChart({ entries, targetWeight, height: chartHeight = 200 }: WeightChartProps) {
-  const colorScheme = useColorScheme() ?? 'light';
+  const rawColorScheme = useColorScheme();
+  const colorScheme = rawColorScheme === 'dark' ? 'dark' : 'light';
   const theme = Colors[colorScheme];
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
 

@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo.png",
     "scheme": "kilo",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.radhika0910.kilo",
@@ -21,6 +21,8 @@
     "android": {
       "package": "com.radhika0910.kilo",
       "versionCode": 1,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#7C3AED"
@@ -45,7 +47,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#7C3AED"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
