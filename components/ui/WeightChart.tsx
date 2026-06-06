@@ -107,6 +107,12 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
     return { points, linePath, fillPath, targetY, gridLines, xLabels, leftPad, topPad, graphWidth, graphHeight };
   }, [entries, targetWeight, screenWidth, chartHeight]);
 
+  const sortedForTooltip = useMemo(() => {
+    return [...entries].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  }, [entries]);
+
   if (!chartData || entries.length < 2) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -117,12 +123,6 @@ export default function WeightChart({ entries, targetWeight, height: chartHeight
       </View>
     );
   }
-
-  const sortedForTooltip = useMemo(() => {
-    return [...entries].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-  }, [entries]);
 
   const selectedEntry = selectedPoint !== null ? sortedForTooltip[selectedPoint] : null;
 
