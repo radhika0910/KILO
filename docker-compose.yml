@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "19000:19000"  # Expo dev server
+      - "19001:19001"  # Expo dev server WebSocket
+      - "8081:8081"    # Expo web bundler
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules  # Preserve node_modules in container
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
